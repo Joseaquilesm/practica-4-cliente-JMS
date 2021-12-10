@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8"/>
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1"/>
+    <title>Practica 4 (JMS y ActiveMQ)</title>
+    <meta content='width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0, shrink-to-fit=no'
+          name='viewport'/>
+    <!-- CSS Files -->
+    <link href="css/bootstrap.min.css" rel="stylesheet"/>
+
+
+</head>
+
+<body>
+
+<div class="wrapper">
+    <div class='container container-fluid'>
+        <nav class="navbar-dark" align="center" style="background-color: #3498DB">
+            <div style="font-family:'Montserrat SemiBold'">
+                <a class="navbar-brand" style="color:white">
+                    Practica 4 JMS y MOM
+                </a>
+
+            </div>
+        </nav>
+    </div>
+    <br>
+    </br>
+    <div>
+        <div class="content">
+            <h2>Primer Sensor</h2>
+            <div class="panel-header" id="tempContainer1">
+                <h4 style="text-align: center">Temperatura</h4>
+                <canvas id="sensor1Temp"></canvas>
+            </div>
+
+            <div class="panel-header panel-header-lg" id="humidityContainer1">
+                <h4 style="text-align:center">Humedad</h4>
+                <canvas id="sensor1Hum"></canvas>
+            </div>
+
+            <div class="content"></div>
+            <br>
+
+            </br>
+            <h2>Segundo Sensor</h2>
+            <div class="panel-header panel-header-lg" id="tempContainer2">
+                <h4 style="text-align: center">Temperatura</h4>
+                <canvas id="sensor2Temp"></canvas>
+            </div>
+
+            <div class="panel-header panel-header-lg" id="humidityContainer2">
+                <h4 style="text-align: center">Humedad</h4>
+                <canvas id="sensor2Hum"></canvas>
+            </div>
+
+
+            <div class="row">
+                <div class="col-lg-4">
+                    <div class="card card-chart">
+
+                    </div>
+                </div>
+
+
+                <div class="col-lg-4 col-md-6">
+                    <div class="card card-chart">
+
+                    </div>
+                </div>
+
+
+                <div class="col-lg-4 col-md-6">
+                    <div class="card card-chart">
+
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+</body>
+
+<!--   Core JS Files   -->
+<script src="js/core/jquery.min.js"></script>
+<script src="js/core/popper.min.js"></script>
+<script src="js/core/bootstrap.min.js"></script>
+<script src="js/plugins/perfect-scrollbar.jquery.min.js"></script>
+<!-- Chart JS -->
+<script src="js/plugins/chartjs.min.js"></script>
+<!--  Notifications Plugin    -->
+<script src="js/plugins/bootstrap-notify.js"></script>
+
+<!--   Graf 1 calor   -->
+
+<script>
+    function updateChart() {
+        var chartColor = "#E41141";
+
+        function renderChart1A(caseData) {
+            var ctx = document.getElementById('sensor1Temp').getContext("2d");
+            ctx.clearRect(0, 0, document.getElementById('sensor1Temp').width, document.getElementById('sensor1Temp').height);
+            var options = {};
+            var sensorChart = new Chart(ctx, {
+                type: "line",
+                data: caseData,
+                options: {
+                    layout: {
+                        padding: {
+                            left: 20,
+                            right: 20,
+                            top: 0,
+                            bottom: 0
+                        }
+                    },
+                    maintainAspectRatio: false,
+                    tooltips: {
+                        backgroundColor: '#fff',
+                        titleFontColor: '#333',
+                        bodyFontColor: '#666',
+                        bodySpacing: 4,
+                        xPadding: 12,
+                        mode: "nearest",
+                        intersect: 0,
+                        position: "nearest"
+                    },
+                    legend: {
+                        position: "bottom",
+                        fillStyle: "#FFF",
+                        display: false
+                    },
+                    scales: {
+                        yAxes: [{
+                            ticks: {
+                                fontColor: "rgba(255,255,255,0.4)",
+                                fontStyle: "bold",
+                                beginAtZero: true,
+                                maxTicksLimit: 5,
+                                padding: 10
+                            },
+                            gridLines: {
+                                drawTicks: true,
+                                drawBorder: true,
+                                display: true,
+                                zeroLineColor: "rgba(0,0,0,0.1)"
+                            }
+
+                        }],
+                        xAxes: [{
+                            gridLines: {
+                                zeroLineColor: "rgba(0,0,0,0.1)",
+                                display: true
+
+                            },
+                            ticks: {
+                                padding: 10,
+                                fontColor: "rgba(255,255,255,0.4)",
+                                fontStyle: "bold"
+                            }
+                        }]
+                    }
+                }
+            });
+        }
+
+        var myChart = {
+            labels: [],
+            datasets: [{
+                label: "Temperatura",
+                backgroundColor: "rgba(255,156,156,0.81)",
+                borderColor: chartColor,
+                pointBorderColor: chartColor,
+                pointBackgroundColor: "#FF434F",
+                pointHoverBackgroundColor: "#FF434F",
+                pointHoverBorderColor: chartColor,
+                pointBorderWidth: 1,
+                pointHoverRadius: 7,
+                pointHoverBorderWidth: 2,
+                pointRadius: 6,
+                fill: true,
+                borderWidth: 2,
+                data: []
+            }]
+
+        };
+        var webSocket;
+
+        function socketConnect() {
+            webSocket = new WebSocket("ws://" + location.hostname + ":" + location.port + "/sensores");
+            webSocket.onmessage = function (datos) {
+                let datosParsed = JSON.parse(datos.data)
+                if (datosParsed.idDispositivo == 1) {
+                    myChart.labels.push(datosParsed.fechaGeneracion);
+                    myChart.datasets[0].data.push(datosParsed.temperatura);
+                    $("#sensor1Temp").remove();
+                    $("#tempContainer1").append('<canvas id="sensor1Temp"></canvas>');
+                    renderChart1A(myChart)
+                }
+            };
+        }
+
+        function connect() {
+            if (!webSocket || webSocket.readyState === 3) {
+                socketConnect();
+            }
+        }
+
+        setInterval(connect, 1000)
+    }
+
+    updateChart();
+</script>
+
+<!--   Graf 1 Humedad   -->
+
+<script>
+
+    function updateChart() {
+        var chartColor = "#0190cd";
+
+        function renderChart1B(caseData) {
+            var ctx = document.getElementById('sensor1Hum').getContext("2d");
+            ctx.clearRect(0, 0, document.getElementById('sensor1Hum').width, document.getElementById('sensor1Hum').height);
+            var options = {};
+
+            var sensorChart = new Chart(ctx, {
+                type: "line",
+                data: caseData,
+                options: {
+                    layout: {
+                        padding: {
+                            left: 20,
+                            right: 20,
+                            top: 0,
+                            bottom: 0
+                        }
+                    },
+                    maintainAspectRatio: false,
+                    tooltips: {
+                        backgroundColor: '#fff',
+                        titleFontColor: '#333',
+                        bodyFontColor: '#666',
+                        bodySpacing: 4,
+                        xPadding: 12,
+                        mode: "nearest",
+                        intersect: 0,
+                        position: "nearest"
+                    },
+                    legend: {
+                        position: "bottom",
+                        fillStyle: "#FFF",
+                        display: false
+                    },
+                    scales: {
+                        yAxes: [{
+                            ticks: {
+                                fontColor: "rgba(255,255,255,0.4)",
+                                fontStyle: "bold",
+                                beginAtZero: true,
+                                maxTicksLimit: 5,
+                                padding: 10
+                            },
+                            gridLines: {
+                                drawTicks: true,
+                                drawBorder: true,
+                                display: true,
+                                color: "rgba(255,255,255,0.1)",
+
+                            }
+
+                        }],
+                        xAxes: [{
+                            gridLines: {
+                                zeroLineColor: "rgba(0,0,0,0.1)",
+                                display: true
+
+                            },
+                            ticks: {
+                                padding: 10,
+                                fontColor: "rgba(255,255,255,0.4)",
+                                fontStyle: "bold"
+                            }
+                        }]
+                    }
+                }
+            });
+        }
+
+        var myChart = {
+            labels: [],
+            datasets: [{
+                label: "Humedad",
+                borderColor: chartColor,
+                backgroundColor: "rgb(126,205,255)",
+                pointBorderColor: chartColor,
+                pointBackgroundColor: "#0190cd",
+                pointHoverBackgroundColor: "#0190CDFF",
+                pointHoverBorderColor: chartColor,
+                pointBorderWidth: 1,
+                pointHoverRadius: 7,
+                pointHoverBorderWidth: 2,
+                pointRadius: 6,
+                fill: true,
+                borderWidth: 2,
+                data: []
+            }]
+
+        };
+        var webSocket;
+
+        function socketConnect() {
+            webSocket = new WebSocket("ws://" + location.hostname + ":" + location.port + "/sensores");
+            webSocket.onmessage = function (datos) {
+                let datosParsed = JSON.parse(datos.data)
+                if (datosParsed.idDispositivo == 1) {
+                    myChart.labels.push(datosParsed.fechaGeneracion);
+                    myChart.datasets[0].data.push(datosParsed.humedad);
+                    $("#sensor1Hum").remove();
+                    $("#humidityContainer1").append('<canvas id="sensor1Hum"></canvas>');
+                    renderChart1B(myChart)
+                }
+            };
+        }
+
+        function connect() {
+            if (!webSocket || webSocket.readyState === 3) {
+                socketConnect();
+            }
+        }
+
+        setInterval(connect, 1000)
+    }
+
+    updateChart();
+
+</script>
+
+<!--   Graf 2 calor   -->
+
+<script>
+
+    function updateChart() {
+        var chartColor = "#E41141";
+
+        function renderChart2A(caseData) {
+            var ctx = document.getElementById('sensor2Temp').getContext("2d");
+            ctx.clearRect(0, 0, document.getElementById('sensor2Temp').width, document.getElementById('sensor2Temp').height);
+            var options = {};
+            var sensorChart = new Chart(ctx, {
+                type: "line",
+                data: caseData,
+                options: {
+                    layout: {
+                        padding: {
+                            left: 20,
+                            right: 20,
+                            top: 0,
+                            bottom: 0
+                        }
+                    },
+                    maintainAspectRatio: false,
+                    tooltips: {
+                        backgroundColor: '#fff',
+                        titleFontColor: '#333',
+                        bodyFontColor: '#666',
+                        bodySpacing: 4,
+                        xPadding: 12,
+                        mode: "nearest",
+                        intersect: 0,
+                        position: "nearest"
+                    },
+                    legend: {
+                        position: "bottom",
+                        fillStyle: "#FFF",
+                        display: false
+                    },
+                    scales: {
+                        yAxes: [{
+                            ticks: {
+                                fontColor: "rgba(255,255,255,0.4)",
+                                fontStyle: "bold",
+                                beginAtZero: true,
+                                maxTicksLimit: 5,
+                                padding: 10
+                            },
+                            gridLines: {
+                                drawTicks: true,
+                                drawBorder: true,
+                                display: true,
+                                color: "rgba(255,255,255,0.1)",
+
+                            }
+                        }],
+                        xAxes: [{
+                            gridLines: {
+                                zeroLineColor: "rgba(0,0,0,0.1)",
+                                display: true
+
+                            },
+                            ticks: {
+                                padding: 10,
+                                fontColor: "rgba(255,255,255,0.4)",
+                                fontStyle: "bold"
+                            }
+                        }]
+                    }
+                }
+            });
+        }
+
+        var myChart = {
+            labels: [],
+            datasets: [{
+                label: "Temperatura",
+                backgroundColor: "rgba(255,156,156,0.81)",
+                borderColor: chartColor,
+                pointBorderColor: chartColor,
+                pointBackgroundColor: "#FF434F",
+                pointHoverBackgroundColor: "#FF434F",
+                pointHoverBorderColor: chartColor,
+                pointBorderWidth: 1,
+                pointHoverRadius: 7,
+                pointHoverBorderWidth: 2,
+                pointRadius: 6,
+                fill: true,
+                borderWidth: 2,
+                data: []
+            }]
+
+        };
+        var webSocket;
+
+        function socketConnect() {
+            webSocket = new WebSocket("ws://" + location.hostname + ":" + location.port + "/sensores");
+            webSocket.onmessage = function (datos) {
+                let datosParsed = JSON.parse(datos.data)
+                if (datosParsed.idDispositivo == 2) {
+                    myChart.labels.push(datosParsed.fechaGeneracion);
+                    myChart.datasets[0].data.push(datosParsed.temperatura);
+                    $("#sensor2Temp").remove();
+                    $("#tempContainer2").append('<canvas id="sensor2Temp"></canvas>');
+                    renderChart2A(myChart)
+                }
+            };
+        }
+
+        function connect() {
+            if (!webSocket || webSocket.readyState === 3) {
+                socketConnect();
+            }
+        }
+
+        setInterval(connect, 1000)
+    }
+
+    updateChart()
+
+</script>
+
+<!--   Graf 2 Humedad   -->
+
+<script>
+
+    function updateChart() {
+        var chartColor = "#0190cd";
+
+        function renderChart2B(caseData) {
+            var ctx = document.getElementById('sensor2Hum').getContext("2d");
+            ctx.clearRect(0, 0, document.getElementById('sensor2Hum').width, document.getElementById('sensor2Hum').height);
+            var gradientStroke = ctx.createLinearGradient(500, 0, 100, 0);
+            var gradientFill = ctx.createLinearGradient(0, 200, 0, 50);
+            gradientFill.addColorStop(0, "rgba(128, 182, 244, 0)");
+            gradientFill.addColorStop(1, "rgba(255, 255, 255, 0.24)");
+            gradientStroke.addColorStop(0, '#80b6f4');
+            gradientStroke.addColorStop(1, chartColor);
+            var options = {};
+
+            var sensorChart = new Chart(ctx, {
+                type: "line",
+                data: caseData,
+                options: {
+                    layout: {
+                        padding: {
+                            left: 20,
+                            right: 20,
+                            top: 0,
+                            bottom: 0
+                        }
+                    },
+                    maintainAspectRatio: false,
+                    tooltips: {
+                        backgroundColor: '#fff',
+                        titleFontColor: '#333',
+                        bodyFontColor: '#666',
+                        bodySpacing: 4,
+                        xPadding: 12,
+                        mode: "nearest",
+                        intersect: 0,
+                        position: "nearest"
+                    },
+                    legend: {
+                        position: "bottom",
+                        fillStyle: "#FFF",
+                        display: false
+                    },
+                    scales: {
+                        yAxes: [{
+                            ticks: {
+                                fontColor: "rgba(255,255,255,0.4)",
+                                fontStyle: "bold",
+                                beginAtZero: true,
+                                maxTicksLimit: 5,
+                                padding: 10
+                            },
+                            gridLines: {
+                                drawTicks: true,
+                                drawBorder: true,
+                                display: true,
+                                color: "rgba(255,255,255,0.1)",
+
+                            }
+
+                        }],
+                        xAxes: [{
+                            gridLines: {
+                                zeroLineColor: "rgba(0,0,0,0.1)",
+                                display: true
+
+                            },
+                            ticks: {
+                                padding: 10,
+                                fontColor: "rgba(255,255,255,0.4)",
+                                fontStyle: "bold"
+                            }
+                        }]
+                    }
+                }
+            });
+        }
+
+        var myChart = {
+            labels: [],
+            datasets: [{
+                label: "Humedad",
+                borderColor: chartColor,
+                backgroundColor: "rgb(126,205,255)",
+                pointBorderColor: chartColor,
+                pointBackgroundColor: "#0190cd",
+                pointHoverBackgroundColor: "#0190CDFF",
+                pointHoverBorderColor: chartColor,
+                pointBorderWidth: 1,
+                pointHoverRadius: 7,
+                pointHoverBorderWidth: 2,
+                pointRadius: 6,
+                fill: true,
+                borderWidth: 2,
+                data: []
+            }]
+
+        };
+        var webSocket;
+
+        function socketConnect() {
+            webSocket = new WebSocket("ws://" + location.hostname + ":" + location.port + "/sensores");
+            webSocket.onmessage = function (datos) {
+                let datosParsed = JSON.parse(datos.data)
+                if (datosParsed.idDispositivo == 2) {
+                    myChart.labels.push(datosParsed.fechaGeneracion);
+                    myChart.datasets[0].data.push(datosParsed.humedad);
+                    $("#sensor2Hum").remove();
+                    $("#humidityContainer2").append('<canvas id="sensor2Hum"></canvas>');
+                    renderChart2B(myChart)
+                }
+            };
+        }
+
+        function connect() {
+            if (!webSocket || webSocket.readyState === 3) {
+                socketConnect();
+            }
+        }
+
+        setInterval(connect, 1000)
+    }
+
+    updateChart()
+</script>
+</html>
